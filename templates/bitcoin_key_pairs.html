@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+<style>
+table {
+    width:100%;
+    font-size: 10px;
+    font-family: monospace;
+}
+table, th, td {
+    border: 0px solid black;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 5px;
+    text-align: left;
+}
+table#t01 tr:nth-child(even) {
+    background-color: #eee;
+}
+table#t01 tr:nth-child(odd) {
+   background-color:#fff;
+}
+table#t01 th {
+    background-color: black;
+    color: white;
+}
+</style>
+<title>All Bitcoin Private Keys</title>
+</head>
+<body>
+<div> You Know, There are 2^256 private keys, or 115792089237316195423570985008687907853269984665640564039457584007913129639936 private keys, or 1.15792 * 10^77 private keys.</div>
+<div> Your are browsing from number {{ from_hex }} to {{ to_hex }}</div>
+
+<div id="get_key_pairs" data_page="{{ page }}" data-key_pairs='{{ json_format(key_pairs) }}'></div>
+<table id="to1" >
+    <tr>
+        <th>hex</th>
+        <th>address</th>
+        <th>private key</th>
+        <th>compressed address</th>
+        <th>compressed private key</th>
+    </tr>
+    {% for k in key_pairs %}
+        <tr>
+        {% for i in ths %}
+        <td>{{ k[i] }}
+        {% if i in ('address', 'compressed_address') %} 
+        {{ compressed_address.get(k[i], {}).get('confirmed', 0) }} 
+        {% endif %}
+        </td>
+        {% endfor %}
+        </tr>
+    {% endfor %}
+</table>
+<script>
+
+
+</script>
+</body>
+</html>
