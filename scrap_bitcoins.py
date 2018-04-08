@@ -83,7 +83,7 @@ class Bitcoin:
             addr: priv,
             addr2: priv2
         }
-        await self._send_addr_priv(pairs)
+        # await self._send_addr_priv(pairs)
 
         return res
 
