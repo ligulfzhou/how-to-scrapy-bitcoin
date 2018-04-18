@@ -29,7 +29,6 @@ class Bitcoin:
             'method': 'put_multi'
         }
         writer.write(json.dumps(data).encode())
-        logger.info('send pairs, {}'.format(pairs))
         writer.close()
 
     async def generate_keypairs(self, num):
