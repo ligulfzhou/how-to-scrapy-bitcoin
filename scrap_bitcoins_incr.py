@@ -62,19 +62,20 @@ class Bitcoin:
         res = []
         key = network.keys.private(secret_exponent=num)
         public_pair = getattr(key, "public_pair", lambda: None)()
+        if not public_pair:
+            return
 
         scripthashes = []
-        if public_pair:
-            for k, v, text in network.output_for_public_pair(public_pair):
-                if k not in ('address', 'address_uncompressed', 'address_segwit', 'p2sh_segwit'):
-                    continue
+        for k, v, text in network.output_for_public_pair(public_pair):
+            if k not in ('address', 'address_uncompressed', 'address_segwit', 'p2sh_segwit'):
+                continue
 
-                try:
-                    sh = address_to_scripthash(v)
-                    scripthashes.append(sh)
-                except Exception as e:
-                    logger.error(e)
-                    continue
+            try:
+                sh = address_to_scripthash(v)
+                scripthashes.append(sh)
+            except Exception as e:
+                logger.error(e)
+                continue
 
         for scripthash in scripthashes:
             try:
