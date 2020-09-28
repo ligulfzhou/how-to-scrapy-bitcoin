@@ -14,10 +14,10 @@ import electrumx.lib.text as text
 from pycoin.symbols.btc import network
 from electrum.bitcoin import address_to_scripthash
 
-logger = logging.getLogger("scrap_bitcoin")
-logger.setLevel(logging.ERROR)
+logger = logging.getLogger("scrap_bitcoin_incr")
+logger.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s - %(message)s")
-handler = RotatingFileHandler("log_scrap_bitcoin.log", maxBytes=104857600, backupCount=5)
+handler = RotatingFileHandler("log_scrap_bitcoin_incr.log", maxBytes=104857600, backupCount=5)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -26,7 +26,7 @@ stderr.setFormatter(formatter)
 logger.addHandler(stderr)
 
 
-indexname = 'indext'
+indexname = 'index'
 filename = 'prikeys.txt'
 
 
@@ -47,7 +47,7 @@ class Bitcoin:
 
     def set_index(self, index):
         with open(indexname, 'w') as f:
-            f.write(index)
+            f.write(str(index))
 
     async def get_bitcoin_balance(self, scripthash, num):
         async with timeout_after(30):
