@@ -1,3 +1,4 @@
+import pdb
 import socket
 import argparse
 import hashlib
@@ -8,9 +9,9 @@ import random
 import os
 import pycoin
 import asyncio
-from pycoin.key.Key import Key
 import logging
 import logging.config
+from pycoin.symbols.btc import network
 
 logging.config.fileConfig('logging.conf')
 logger = logging.getLogger('root')
@@ -31,7 +32,7 @@ class Bitcoin:
         reader, writer = await asyncio.open_connection(self.electrumx_host, self.electrumx_port, loop=self.loop)
         params = {
             'jsonrpc': '2.0',
-            'method': 'blockchain.address.get_balance',
+            'method': 'blockchain.scripthash.get_balance',
             'params': [addr],
             'id': addr
         }
@@ -60,20 +61,36 @@ class Bitcoin:
         writer.close()
 
     async def get_has_balance_prikey(self, num):
-        res = []
-        k = Key(num)
-        addr, priv = k.address(), k.wif()
+
+
         try:
-            balance = await self.get_bitcoin_balance(addr)
+            result = await self.get_bitcoin_balance("482c77b119e47024d00b38a256a3a83cbc716ebb4d684a0d30b8ea1af12d42d9")
+            logger.error("482c77b119e47024d00b38a256a3a83cbc716ebb4d684a0d30b8ea1af12d42d9")
+            logger.error(result)
+
+            result = await self.get_bitcoin_balance("c3c0439f33dc4cf4d66d3dd37900fc12597938a64817306b542a75b9223213e0")
+            logger.error("c3c0439f33dc4cf4d66d3dd37900fc12597938a64817306b542a75b9223213e0")
+            logger.error(result)
+        except:
+            pass
+
+        return
+        res = []
+        k = network.keys.private(secret_exponent=num)  # this is a terrible key because it's very guessable
+
+        addr, priv = k.address(is_compressed=False), k.wif(is_compressed=False)
+        try:
+            balance = await self.get_bitcoin_balance(scripthash)
             if int(balance['confirmed']) or int(balance['unconfirmed'])>0:
                 res.append(priv)
         except Exception as e:
             logger.error(e)
             logger.error('%s: %s'%(num, addr))
 
-        addr2, priv2 = k.address(use_uncompressed=True), k.wif(use_uncompressed=True)
+        addr2, priv2 = k.address(is_compressed=True), k.wif(is_compressed=True)
+        scripthash = Coin.address_to_hashX(addr2)
         try:
-            balance = await self.get_bitcoin_balance(addr2)
+            balance = await self.get_bitcoin_balance(scripthash)
             if int(balance['confirmed'])>0 or int(balance['unconfirmed'])>0:
                 res.append(priv2)
         except Exception as e:
@@ -101,6 +118,7 @@ class Bitcoin:
                 num = tmp
             logger.info('No: {}'.format(num))
             prikeys = await self.get_has_balance_prikey(num)
+            return
             if prikeys:
                 self.write_to_file(prikeys)
 
