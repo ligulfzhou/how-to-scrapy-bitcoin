@@ -5,14 +5,12 @@ import socket
 import asyncio
 import logging
 import hashlib
+import binascii
 from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
-
 from aiorpcx import timeout_after, connect_rs
 import electrumx.lib.text as text
-
 from pycoin.symbols.btc import network
-from electrum.bitcoin import address_to_scripthash
 
 logger = logging.getLogger("scrap_bitcoin_random")
 logger.setLevel(logging.INFO)
@@ -34,6 +32,9 @@ class Bitcoin:
         self.loop = loop
         self.electrumx_host = 'localhost'
         self.electrumx_port = 8000
+
+    def get_script(self, addr):
+        return binascii.hexlify(network.parse.address(addr).script()).decode()
 
     async def get_bitcoin_balance(self, scripthash, num):
         async with timeout_after(30):
@@ -57,7 +58,7 @@ class Bitcoin:
                 continue
 
             try:
-                sh = address_to_scripthash(v)
+                sh = self.get_script(v)
                 scripthashes.append(sh)
             except Exception as e:
                 logger.error(e)
@@ -77,8 +78,6 @@ class Bitcoin:
     async def start_scrap(self):
         while True:
             num = random.randint(1, 115792089237316195423570985008687907853269984665640564039457584007913129639937)
-            if not num:
-                num = tmp
             await self.iterate_keys_of_num(num)
 
 if __name__ == '__main__':

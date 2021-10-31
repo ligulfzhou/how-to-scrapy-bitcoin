@@ -5,14 +5,12 @@ import socket
 import asyncio
 import logging
 import hashlib
+import binascii
 from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
-
 from aiorpcx import timeout_after, connect_rs
 import electrumx.lib.text as text
-
 from pycoin.symbols.btc import network
-from electrum.bitcoin import address_to_scripthash
 
 logger = logging.getLogger("scrap_bitcoin_incr")
 logger.setLevel(logging.INFO)
@@ -37,6 +35,9 @@ class Bitcoin:
         self.electrumx_host = 'localhost'
         self.electrumx_port = 8000
         self.index = self.load_index()
+
+    def get_script(self, addr):
+        return binascii.hexlify(network.parse.address(addr).script()).decode()
 
     def load_index(self):
         try:
@@ -71,7 +72,7 @@ class Bitcoin:
                 continue
 
             try:
-                sh = address_to_scripthash(v)
+                sh = self.get_script(v)
                 scripthashes.append(sh)
             except Exception as e:
                 logger.error(e)
