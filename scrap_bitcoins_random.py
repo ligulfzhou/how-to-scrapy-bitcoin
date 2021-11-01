@@ -1,15 +1,13 @@
 import sys
-import json
+import time
 import random
-import socket
 import asyncio
 import logging
-import hashlib
 import binascii
+import requests
 from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
 from aiorpcx import timeout_after, connect_rs
-import electrumx.lib.text as text
 from pycoin.symbols.btc import network
 
 logger = logging.getLogger("scrap_bitcoin_random")
@@ -32,43 +30,45 @@ class Bitcoin:
         self.loop = loop
         self.electrumx_host = 'localhost'
         self.electrumx_port = 8000
+        self.storage_url = 'http://localhost:8080/save'
 
     def get_script(self, addr):
         return binascii.hexlify(network.parse.address(addr).script()).decode()
 
-    async def get_bitcoin_balance(self, scripthash, num):
+    async def get_bitcoin_balance(self, address, num):
         async with timeout_after(30):
             async with connect_rs(self.electrumx_host, self.electrumx_port) as session:
+                script = self.get_script(address)
                 session.transport._framer.max_size = 0
-                result = await session.send_request('query', {'items': [scripthash], 'limit': 1})
+                result = await session.send_request('query', {'items': [script], 'limit': 1})
                 logger.info("num: %s result: %s" % (num, result))
                 if float(result[-1].strip('Balance:').strip('BTC')):
                     self.write_to_file([num])
 
+                if result[1] != 'No history found':
+                    print(f'save privatekey: {num} to storage service.....')
+                    requests.post(self.storage_url, json={
+                        'address': address,
+                        'privkey': str(num)
+                    })
+
     async def iterate_keys_of_num(self, num):
-        res = []
         key = network.keys.private(secret_exponent=num)
         public_pair = getattr(key, "public_pair", lambda: None)()
         if not public_pair:
             return
 
-        scripthashes = []
-        for k, v, text in network.output_for_public_pair(public_pair):
+        for k, v, _ in network.output_for_public_pair(public_pair):
             if k not in ('address', 'address_uncompressed', 'address_segwit', 'p2sh_segwit'):
                 continue
 
-            try:
-                sh = self.get_script(v)
-                scripthashes.append(sh)
-            except Exception as e:
-                logger.error(e)
-                continue
-
-        for scripthash in scripthashes:
-            try:
-                await self.get_bitcoin_balance(scripthash, num)
-            except Exception as e:
-                logger.error('e: %s %s: %s'%(e, num, scripthash))
+            while True:
+                try:
+                    await self.get_bitcoin_balance(v, num)
+                    break
+                except Exception as e:
+                    logger.error('e: %s %s: %s' % (e, num, v))
+                    time.sleep(5)
 
     def write_to_file(self, prikeys=[]):
         txt = ';'.join(prikeys)
