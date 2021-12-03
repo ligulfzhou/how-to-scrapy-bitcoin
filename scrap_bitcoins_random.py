@@ -13,7 +13,7 @@ from pycoin.symbols.btc import network
 logger = logging.getLogger("scrap_bitcoin_random")
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s - %(message)s")
-handler = RotatingFileHandler("log_scrap_bitcoin_random_%s.log" % (random.randint(100, 999)), maxBytes=104857600, backupCount=5)
+handler = RotatingFileHandler("log_scrap_bitcoin_random_%s.log" % (random.randint(100, 999)), maxBytes=104857600, backupCount=1)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 

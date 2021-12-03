@@ -40,22 +40,26 @@ class MnemonicCode:
     def get_script(self, addr):
         return binascii.hexlify(network.parse.address(addr).script()).decode()
 
-    async def get_bitcoin_balance(self, address, mnemonic_code, path):
+    async def get_bitcoin_balance(self, address, mnemonic_code, path) -> (bool, bool):
         async with timeout_after(30):
             async with connect_rs(self.electrumx_host, self.electrumx_port) as session:
+                have_balance, have_transaction = False, False
                 script = self.get_script(address)
                 session.transport._framer.max_size = 0
                 result = await session.send_request('query', {'items': [script], 'limit': 1})
                 logger.info("address: %s, result: %s" % (address, result))
                 if float(result[-1].strip('Balance:').strip('BTC')):
                     self.write_to_file([mnemonic_code])
+                    have_balance = True
 
                 if result[1] != 'No history found':
+                    have_transaction = True
                     print(f'save mnemonic: {mnemonic_code} to storage service.....')
                     requests.post(self.storage_url, json={
                         'mnemonic': mnemonic_code,
                         'path': path
                     })
+                return have_balance, have_transaction
 
     def write_to_file(self, prikeys=[]):
         txt = ';'.join(prikeys)
@@ -121,15 +125,22 @@ class MnemonicCode:
 
         for derivation_path in derivation_paths:
             p, show_harden, begin_bc, begin_3 = self._get_bip_path(words, derivation_path)
-            kp = self._get_key_pair(0, p, show_harden, begin_bc, begin_3)
-            print(f'get kp: {kp} from mnemonic: {" ".join(words)} with derivation_path: {derivation_path}')
+            idx = 0
             while True:
-                try:
-                    await self.get_bitcoin_balance(kp['address'], ' '.join(words), derivation_path)
+                kp = self._get_key_pair(idx, p, show_harden, begin_bc, begin_3)
+                have_balance, have_transaction = False, False
+                print(f'get kp: {kp} from mnemonic: {" ".join(words)} with derivation_path: {derivation_path} and index: {idx}')
+                while True:
+                    try:
+                        have_balance, have_transaction = await self.get_bitcoin_balance(kp['address'], ' '.join(words), derivation_path)
+                        break
+                    except Exception as e:
+                        print(e)
+                        time.sleep(5)
+                if not have_balance and not have_transaction:
                     break
-                except Exception as e:
-                    print(e)
-                    time.sleep(5)
+
+                idx += 1
 
     async def start_scrap(self):
         while True:

