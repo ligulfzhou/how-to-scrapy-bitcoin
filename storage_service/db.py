@@ -4,8 +4,8 @@ import plyvel
 class DB(object):
 
     def __init__(self):
-        self.addr_privkey = plyvel.DB('/root/.electrumx/addr_privkey', create_if_missing=True, max_open_files=128)
-        self.mnemonic_path = plyvel.DB('/root/.electrumx/mnemonic_path', create_if_missing=True, max_open_files=128)
+        self.addr_privkey = plyvel.DB('/Users/ligangzhou/.electrumx/addr_privkey', create_if_missing=True, max_open_files=128)
+        self.mnemonic_path = plyvel.DB('/Users/ligangzhou/.electrumx/mnemonic_path', create_if_missing=True, max_open_files=128)
 
     def get_privkey_of_addr(self, addr: str) -> str:
         privkey = self.addr_privkey.get(addr.encode())

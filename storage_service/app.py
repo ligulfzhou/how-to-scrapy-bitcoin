@@ -7,8 +7,9 @@ from typing import NoReturn
 
 conn = DB()
 
-loop = asyncio.get_event_loop()
-app = web.Application(loop=loop)
+# loop = asyncio.get_event_loop()
+# app = web.Application(loop=loop)
+app = web.Application()
 
 
 async def index(request: web.Request) -> web.StreamResponse:
