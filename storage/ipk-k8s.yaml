@@ -1,0 +1,36 @@
+ apiVersion: v1
+ kind: Service
+ metadata:
+   name: ipk-service
+ spec:
+   type: ClusterIP
+   selector:
+     app: ipk-service
+   ports:
+   - protocol: "TCP"
+     port: 80
+     targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipk-service
+spec:
+  selector:
+    matchLabels:
+      app: ipk-service
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: ipk-service
+    spec:
+      containers:
+      - name: ipk
+        image: docker.io/ligulfzhou53/ipk
+        imagePullPolicy: Always
+        env:
+          - name: DATABASE_URL
+            value: "postgresql://root:POSTGRESzlg153@postgresql.default.svc.cluster.local/pk"
+        ports:
+        - containerPort: 8000
