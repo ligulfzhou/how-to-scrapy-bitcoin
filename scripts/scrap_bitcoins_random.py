@@ -1,21 +1,19 @@
 import sys
+import time
+import random
 import asyncio
 import logging
 import binascii
-import time
-import argparse
-import requests
-
 from logging import StreamHandler
 from logging.handlers import RotatingFileHandler
 from aiorpcx import timeout_after, connect_rs
 from pycoin.symbols.btc import network
+from utils import save_private_key, address_to_script
 
-
-logger = logging.getLogger("scrap_bitcoin_incr")
+logger = logging.getLogger("scrap_bitcoin_random")
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s - %(message)s")
-handler = RotatingFileHandler("log_scrap_bitcoin_incr.log", maxBytes=104857600, backupCount=1)
+handler = RotatingFileHandler("log_scrap_bitcoin_random_%s.log" % (random.randint(100, 999)), maxBytes=104857600, backupCount=1)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -23,38 +21,20 @@ stderr = StreamHandler(sys.stderr)
 stderr.setFormatter(formatter)
 logger.addHandler(stderr)
 
-indexname = 'index'
 filename = 'prikeys.txt'
 
 
 class Bitcoin:
 
-    def __init__(self, loop, idx):
-        self.process_idx = idx
+    def __init__(self, loop):
         self.loop = loop
         self.electrumx_host = 'localhost'
         self.electrumx_port = 8000
-        self.index = self.load_index()
-        self.storage_url = 'http://localhost:8080/save'
-
-    def get_script(self, addr):
-        return binascii.hexlify(network.parse.address(addr).script()).decode()
-
-    def load_index(self):
-        try:
-            with open(f'{indexname}{self.process_idx}', 'r') as f:
-                return int(f.read())
-        except:
-            return 1
-
-    def set_index(self, index):
-        with open(f'{indexname}{self.process_idx}', 'w') as f:
-            f.write(str(index))
 
     async def get_bitcoin_balance(self, address, num):
         async with timeout_after(30):
             async with connect_rs(self.electrumx_host, self.electrumx_port) as session:
-                script = self.get_script(address)
+                script = address_to_script(address)
                 session.transport._framer.max_size = 0
                 result = await session.send_request('query', {'items': [script], 'limit': 1})
                 logger.info("num: %s result: %s" % (num, result))
@@ -63,10 +43,10 @@ class Bitcoin:
 
                 if result[1] != 'No history found':
                     print(f'save privatekey: {num} to storage service.....')
-                    requests.post(self.storage_url, json={
-                        'address': address,
-                        'privkey': str(num)
-                    })
+                    try:
+                        save_private_key('', address, str(num))
+                    except:
+                        pass
 
     async def iterate_keys_of_num(self, num):
         key = network.keys.private(secret_exponent=num)
@@ -89,22 +69,16 @@ class Bitcoin:
     def write_to_file(self, prikeys=[]):
         txt = ';'.join(prikeys)
         with open(filename, 'a') as f:
-            f.writelines(txt + '\n')
+            f.writelines(txt+'\n')
 
     async def start_scrap(self):
         while True:
-            await self.iterate_keys_of_num(self.index)
-            self.index += 1
-            if not self.index % 100:
-                self.set_index(self.index)
-
+            num = random.randint(1, 115792089237316195423570985008687907853269984665640564039457584007913129639937)
+            await self.iterate_keys_of_num(num)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='update hostname and control telegraf')
-    parser.add_argument('--idx', type=int, default=1, help='process N')
-    args = parser.parse_args()
-
     loop = asyncio.get_event_loop()
-    bitcoin = Bitcoin(loop, args.idx)
+    bitcoin = Bitcoin(loop)
     loop.run_until_complete(bitcoin.start_scrap())
     loop.close()
+

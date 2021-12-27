@@ -10,7 +10,7 @@ from utils import models_to_list, model_to_dict
 router_bp = Blueprint('router', __name__)
 
 
-@router_bp.route('/save/private/key', methods=['POST'])
+@router_bp.route('/api/save/private/key', methods=['POST'])
 def save_pk():
     body = request.get_json()
     num, private_key, address = body['num'], body.get('private_key', ''), body['address']
@@ -27,7 +27,7 @@ def save_pk():
     return jsonify({})
 
 
-@router_bp.route('/save/mnemonic/code', methods=['POST'])
+@router_bp.route('/api/save/mnemonic/code', methods=['POST'])
 def save_mc():
     body = request.get_json()
     mnemonic, pk = body['mnemonic'], body['private_key']
